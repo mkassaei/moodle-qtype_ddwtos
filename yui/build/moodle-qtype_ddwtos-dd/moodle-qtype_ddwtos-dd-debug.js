@@ -34,6 +34,7 @@ var DDWTOS_DD = function() {
  */
 Y.extend(DDWTOS_DD, Y.Base, {
     selectors : null,
+    touchScrollDisable: null,
     initializer : function() {
         var pendingid = 'qtype_ddwtos-' + Math.random().toString(36).slice(2); // Random string.
         M.util.js_pending(pendingid);
@@ -210,7 +211,42 @@ Y.extend(DDWTOS_DD, Y.Base, {
             groups: [this.get_group(drag)],
             dragMode: 'point'
         }).plug(Y.Plugin.DDConstrained, {constrain2node: this.selectors.top_node()});
+
+        // Prevent scrolling whilst dragging on Adroid devices.
+        this.dragNoScrolling(drag);
     },
+
+    /**
+     * dragNoScrolling allows users of touch screen devices to use drag and drop
+     * and normal scrolling at the same time. I.e.when touching and dragging a
+     * draggable item, the screen does not scroll, but you can scroll by touching
+     * other area of the screen apart from the draggable items
+     */
+    dragNoScrolling : function(drag) {
+        var touchstart = (Y.UA.ie) ? 'MSPointerStart' : 'touchstart';
+        var touchend = (Y.UA.ie) ? 'MSPointerEnd' : 'touchend';
+        var touchmove = (Y.UA.ie) ? 'MSPointerMove' : 'touchmove';
+
+        // Disable scrolling when touching the draggable items.
+        drag.on(touchstart, function() {
+            if (this.touchScrollDisable) {
+                return; // Already disabled.
+            }
+            this.touchScrollDisable = Y.one('body').on(touchmove, function(e) {
+                e = e || window.event;
+                e.preventDefault();
+            });
+        }, this);
+
+        // Allow scrolling after releasing the draggable items.
+        drag.on(touchend, function() {
+            if (this.touchScrollDisable) {
+                this.touchScrollDisable.detach();
+                this.touchScrollDisable = null;
+            }
+        }, this);
+    },
+
     make_drop_zones : function () {
         Y.all(this.selectors.drops()).each(this.make_drop_zone, this);
     },
